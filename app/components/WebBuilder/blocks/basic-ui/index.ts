@@ -1,0 +1,21 @@
+import type { Editor } from 'grapesjs'
+
+const base = 'box-sizing:border-box;font-family:var(--font-body,system-ui,sans-serif);'
+
+export function registerBasicUI(editor: Editor): void {
+  const bm = editor.Blocks
+
+  bm.add('divider', {
+    label: 'Divider',
+    category: 'UI',
+    media: 'lucide:separator-horizontal',
+    content: `<hr style="${base}border:none;border-top:1px solid var(--color-border,#e5e7eb);margin:24px 0;" />`,
+  })
+
+  bm.add('spacer', {
+    label: 'Spacer',
+    category: 'UI',
+    media: 'lucide:arrow-up-down',
+    content: `<div style="${base}height:64px;"></div>`,
+  })
+}

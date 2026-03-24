@@ -1,0 +1,331 @@
+/**
+ * editor.css — GrapesJS theme overrides + editor chrome CSS variables
+ *
+ * Strategy:
+ * - All editor chrome layout uses Tailwind ( prefix)
+ * - GrapesJS Canvas is hidden from Tailwind (content: [] excludes its iframe)
+ * - This file overrides GrapesJS CSS variables and hides default panels
+ *   that we replace with our own Vue components
+ *
+ * Theming:
+ * - App.vue sets data-theme="dark"|"light" on <html> via useTheme()
+ * - Dark is the default; light variables are in [data-theme="light"]
+ */
+
+/* ── Dark theme — Glassmorphism ──────────────────────────────────────────── */
+:root,
+[data-theme='dark'] {
+  --gjs-primary-color: #080c18;
+  --gjs-secondary-color: rgba(210, 230, 255, 0.7);
+  --gjs-tertiary-color: #5B8EFF;
+  --gjs-quaternary-color: #5B8EFF;
+
+  /* Editor chrome design tokens — glassmorphism dark */
+  --editor-surface:          #080c18;
+  --editor-surface-raised:   rgba(14, 22, 52, 0.70);
+  --editor-surface-overlay:  rgba(255, 255, 255, 0.05);
+  --editor-surface-border:   rgba(255, 255, 255, 0.08);
+  --editor-accent:           #5B8EFF;
+  --editor-text:             rgba(220, 235, 255, 0.92);
+  --editor-text-muted:       rgba(180, 210, 255, 0.50);
+  --editor-text-subtle:      rgba(150, 190, 255, 0.25);
+  --editor-input-bg:         rgba(255, 255, 255, 0.04);
+  --editor-input-border:     rgba(255, 255, 255, 0.10);
+  --editor-input-hover-border: rgba(91, 142, 255, 0.70);
+  --editor-scrollbar-thumb:       rgba(255, 255, 255, 0.10);
+  --editor-scrollbar-thumb-hover: rgba(255, 255, 255, 0.22);
+
+  /* Extended tokens — used by modals / browse panel */
+  --editor-modal-bg:            rgba(8, 12, 26, 0.95);
+  --editor-glass-chip:          rgba(8, 12, 26, 0.82);
+  --editor-accent-subtle:       rgba(91, 142, 255, 0.12);
+  --editor-accent-subtle-hover: rgba(91, 142, 255, 0.06);
+  --editor-accent-muted-border: rgba(91, 142, 255, 0.35);
+  --editor-border-strong:       rgba(255, 255, 255, 0.14);
+  --editor-border-hover:        rgba(255, 255, 255, 0.22);
+  --editor-select-option-bg:    #0e1624;
+}
+
+/* ── Light theme ─────────────────────────────────────────────────────────── */
+[data-theme='light'] {
+  --gjs-primary-color: #f0f0f0;
+  --gjs-secondary-color: rgba(0, 0, 0, 0.7);
+  --gjs-tertiary-color: #3b82f6;
+  --gjs-quaternary-color: #3b82f6;
+
+  /* Editor chrome design tokens */
+  --editor-surface:          #eef2ff;
+  --editor-surface-raised:   rgba(255, 255, 255, 0.80);
+  --editor-surface-overlay:  rgba(0, 0, 0, 0.04);
+  --editor-surface-border:   rgba(0, 0, 0, 0.08);
+  --editor-accent:           #3b82f6;
+  --editor-text:             rgba(15, 23, 42, 0.90);
+  --editor-text-muted:       rgba(15, 23, 42, 0.8);
+  --editor-text-subtle:      rgba(15, 23, 42, 0.6);
+  --editor-input-bg:         rgba(255, 255, 255, 1);
+  --editor-input-border:     rgba(0, 0, 0, 0.12);
+  --editor-input-hover-border: rgba(59, 130, 246, 0.60);
+  --editor-scrollbar-thumb:       rgba(0, 0, 0, 0.15);
+  --editor-scrollbar-thumb-hover: rgba(0, 0, 0, 0.28);
+
+  /* Extended tokens */
+  --editor-modal-bg:            rgba(252, 254, 255, 0.97);
+  --editor-glass-chip:          rgba(240, 246, 255, 0.94);
+  --editor-accent-subtle:       rgba(59, 130, 246, 0.08);
+  --editor-accent-subtle-hover: rgba(59, 130, 246, 0.05);
+  --editor-accent-muted-border: rgba(59, 130, 246, 0.30);
+  --editor-border-strong:       rgba(0, 0, 0, 0.12);
+  --editor-border-hover:        rgba(0, 0, 0, 0.20);
+  --editor-select-option-bg:    #f0f4ff;
+}
+
+/* ── Reset editor body ───────────────────────────────────────────────────── */
+html,
+body,
+#app {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  color: var(--editor-text);
+  font-family: 'Inter', system-ui, sans-serif;
+  /* Dark gradient mesh (default) */
+  background-color: #080c18;
+  background-image:
+    radial-gradient(ellipse at 15% 50%, rgba(59, 82, 200, 0.28) 0%, transparent 55%),
+    radial-gradient(ellipse at 85% 15%, rgba(110, 55, 195, 0.22) 0%, transparent 55%),
+    radial-gradient(ellipse at 60% 85%, rgba(30, 90, 180, 0.18) 0%, transparent 50%);
+  background-attachment: fixed;
+}
+
+/* Light gradient mesh */
+[data-theme='light'] body,
+[data-theme='light'] #app {
+  background-color: #eef2ff;
+  background-image:
+    radial-gradient(ellipse at 15% 50%, rgba(147, 197, 253, 0.28) 0%, transparent 55%),
+    radial-gradient(ellipse at 85% 15%, rgba(196, 181, 253, 0.22) 0%, transparent 55%),
+    radial-gradient(ellipse at 60% 85%, rgba(147, 210, 253, 0.18) 0%, transparent 50%);
+}
+
+/* Light mode: adjust glass-surface highlight for white surface */
+[data-theme='light'] .glass-surface {
+  box-shadow:
+    inset 0 0 0 rgba(0, 0, 0, 0.90),
+    0 0 0 1px rgba(0, 0, 0, 0.04),
+    0 4px 16px rgba(0, 0, 0, 0.06);
+}
+
+/* ── GrapesJS Canvas ─────────────────────────────────────────────────────── */
+.gjs-cv-canvas {
+  top: 0;
+  height: 100%;
+  width: 100%;
+}
+
+/* ── Hide ALL GrapesJS default panels ───────────────────────────────────── */
+.gjs-pn-panels,
+.gjs-pn-views,
+.gjs-pn-views-container,
+.gjs-pn-options,
+.gjs-pn-commands {
+  display: none !important;
+}
+.gjs-toolbar{
+    background-color: #3b82f6 !important;
+}
+/* ── Canvas drag-over border ─────────────────────────────────────────────── */
+.gjs-frame-wrapper {
+  border: none;
+}
+
+/* Component selected / hovered highlight */
+.gjs-selected {
+  outline: 2px solid var(--editor-accent) !important;
+  outline-offset: 1px;
+}
+.gjs-hovered {
+  outline: 1px solid rgba(91, 142, 255, 0.5) !important;
+}
+.gjs-off-prv{
+    display: none !important;
+}
+
+/* ── Glass surface utility ───────────────────────────────────────────────── */
+/* Applied to toolbar / sidebars for the frosted glass effect */
+.glass-surface {
+  background: var(--editor-surface-raised);
+  backdrop-filter: blur(20px) saturate(1.4);
+  -webkit-backdrop-filter: blur(20px) saturate(1.4);
+  /* Top highlight — gives depth to the glass */
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.10), 0 0 0 1px rgba(255, 255, 255, 0.04);
+}
+
+/* ── Block drag ghost ────────────────────────────────────────────────────── */
+.gjs-block-label {
+  font-size: 12px;
+  font-family: inherit;
+}
+
+/* ── Style Panel helpers ─────────────────────────────────────────────────── */
+/* Used by all style section components via non-scoped class names */
+
+.prop-label {
+  font-size: 12px;
+  color: var(--editor-text);
+  line-height: 1.3;
+}
+.n-base-select-menu .n-base-select-option,
+.n-base-selection .n-base-selection-label .n-base-selection-input{
+    font-size: 12px;
+    padding-inline: 10px;
+}
+.n-base-select-menu .n-base-select-option{
+    min-height: 28px;
+}
+/* Plain text input that matches Naive UI 'small' NInput look */
+.css-text-input {
+  width: 100%;
+  height: 28px;
+  padding: 0 8px;
+  font-size: 12px;
+  font-family: inherit;
+  background: var(--editor-input-bg);
+  color: var(--editor-text);
+  border: 1px solid var(--editor-input-border);
+  border-radius: 3px;
+  outline: none;
+  box-sizing: border-box;
+  transition: border-color 0.15s;
+}
+.css-text-input:hover   { border-color: var(--editor-input-hover-border); }
+.css-text-input:focus   { border-color: var(--editor-accent); }
+
+/* Style panel Naive UI collapse customisation */
+.style-panel-collapse .n-collapse-item__header {
+    font-size: 13px !important;
+    --n-title-padding: 10px 0 0 0;
+}
+.n-collapse .n-collapse-item{
+    --n-item-margin: 10px 0 0 0;
+}
+.style-panel-collapse .n-collapse-item__header .n-base-icon{
+    width: 12px;
+    height: 12px;
+}
+.style-panel-collapse .n-collapse-item__header .n-base-icon svg{
+    width: 12px;
+    height: 12px;
+}
+/* ── Layer Panel ─────────────────────────────────────────────────────────── */
+.layer-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding-right: 6px;
+  padding-top: 3px;
+  padding-bottom: 3px;
+  cursor: pointer;
+  font-size: 12px;
+  user-select: none;
+  color: var(--editor-text-muted);
+  transition: background-color 0.1s, color 0.1s;
+  /* Drop indicator borders — use box-shadow to avoid layout shift */
+  border-top: 2px solid transparent;
+  border-bottom: 2px solid transparent;
+}
+.layer-row:hover {
+  background-color: var(--editor-surface-overlay);
+  color: var(--editor-text);
+}
+.layer-row--selected {
+  background-color: rgba(91, 142, 255, 0.15);
+  color: var(--editor-text);
+}
+.layer-row--hovered:not(.layer-row--selected) {
+  background-color: var(--editor-surface-overlay);
+  color: var(--editor-text);
+}
+.layer-row--dragging {
+  opacity: 0.3;
+  cursor: grabbing;
+}
+.layer-row--drop-before {
+  border-top-color: var(--editor-accent);
+}
+.layer-row--drop-after {
+  border-bottom-color: var(--editor-accent);
+}
+.layer-row--drop-inside {
+  outline: 1px solid var(--editor-accent);
+  outline-offset: -1px;
+  background-color: rgba(91, 142, 255, 0.08);
+}
+
+/* Row hover actions */
+.layer-row-actions {
+  opacity: 0;
+  transition: opacity 0.1s;
+}
+.layer-row:hover .layer-row-actions,
+.layer-row--selected .layer-row-actions {
+  opacity: 1;
+}
+.layer-action-btn {
+  width: 16px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 3px;
+  border: none;
+  background: transparent;
+  color: var(--editor-text-muted);
+  cursor: pointer;
+  padding: 0;
+  transition: background-color 0.1s, color 0.1s;
+}
+.layer-action-btn:hover {
+  background-color: var(--editor-surface-overlay);
+  color: var(--editor-text);
+}
+
+/* Inline rename input */
+.layer-rename-input {
+  flex: 1;
+  min-width: 0;
+  height: 20px;
+  padding: 0 4px;
+  font-size: 12px;
+  font-family: inherit;
+  background: var(--editor-input-bg);
+  color: var(--editor-text);
+  border: 1px solid var(--editor-accent);
+  border-radius: 3px;
+  outline: none;
+}
+
+/* Search highlight mark */
+.layer-search-mark {
+  background-color: rgba(251, 191, 36, 0.25);
+  color: #fbbf24;
+  border-radius: 2px;
+  padding: 0 2px;
+  font-style: normal;
+}
+
+/* ── Scrollbar ───────────────────────────────────────────────────────────── */
+::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--editor-scrollbar-thumb);
+  border-radius: 2px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--editor-scrollbar-thumb-hover);
+}
