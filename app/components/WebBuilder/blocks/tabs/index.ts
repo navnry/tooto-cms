@@ -1,4 +1,5 @@
 import type { Component, Components, Editor } from 'grapesjs'
+import { createBlockRegistrar } from '../registry'
 import {
   ATTR_PANEL,
   ATTR_TAB,
@@ -14,13 +15,13 @@ import { tabsScript as script } from './script'
 import { TABS_STYLES } from './styles'
 
 export function registerTabs(editor: Editor): void {
-  const { DomComponents, BlockManager } = editor
+  const { addType, addBlock } = createBlockRegistrar(editor)
 
   function findByType(collection: Components, type: string): Component | undefined {
     return collection.models.find(component => component.getType() === type)
   }
 
-  DomComponents.addType(TYPE_TAB_PANEL, {
+  addType(TYPE_TAB_PANEL, {
     isComponent: (el: HTMLElement) =>
       el.hasAttribute?.(ATTR_PANEL) ? { type: TYPE_TAB_PANEL } : undefined,
     model: {
@@ -35,7 +36,7 @@ export function registerTabs(editor: Editor): void {
     },
   })
 
-  DomComponents.addType(TYPE_TABS_PANELS, {
+  addType(TYPE_TABS_PANELS, {
     model: {
       defaults: {
         name: 'Panels',
@@ -49,7 +50,7 @@ export function registerTabs(editor: Editor): void {
     },
   })
 
-  DomComponents.addType(TYPE_TAB, {
+  addType(TYPE_TAB, {
     isComponent: (el: HTMLElement) =>
       el.hasAttribute?.(ATTR_TAB) ? { type: TYPE_TAB } : undefined,
     model: {
@@ -62,7 +63,7 @@ export function registerTabs(editor: Editor): void {
     },
   })
 
-  DomComponents.addType(TYPE_TABS_NAV, {
+  addType(TYPE_TABS_NAV, {
     model: {
       defaults: {
         name: 'Tab List',
@@ -91,7 +92,7 @@ export function registerTabs(editor: Editor): void {
     },
   })
 
-  DomComponents.addType(TYPE_TABS, {
+  addType(TYPE_TABS, {
     isComponent: (el: HTMLElement) =>
       el.classList?.contains('gjs-tabs') ? { type: TYPE_TABS } : undefined,
 
@@ -131,7 +132,7 @@ export function registerTabs(editor: Editor): void {
     },
   })
 
-  BlockManager.add('tabs', {
+  addBlock('tabs', {
     label: 'Tabs',
     category: 'UI',
     media: TABS_BLOCK_ICON,

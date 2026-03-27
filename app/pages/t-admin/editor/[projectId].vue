@@ -122,7 +122,7 @@ function goToProjects() {
                 <span class="w-1.5 h-1.5 rounded-full bg-indigo-400 animate-bounce [animation-delay:150ms]" />
                 <span class="w-1.5 h-1.5 rounded-full bg-indigo-400 animate-bounce [animation-delay:300ms]" />
               </div>
-              <p class="text-[12px] text-white/40 font-medium tracking-wide">正在加载编辑器…</p>
+              <p class="text-[12px] text-white/40 font-medium tracking-wide">Loading…</p>
             </div>
           </div>
         </div>

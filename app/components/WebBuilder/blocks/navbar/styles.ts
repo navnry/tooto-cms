@@ -22,6 +22,8 @@ export const NAVBAR_STYLES = `
     align-items: center;
     margin: 0 auto;
     gap: 16px;
+    max-width: 1280px;
+    padding: 0 20px;
   }
 
   .gjs-navbar__left {
@@ -74,15 +76,14 @@ export const NAVBAR_STYLES = `
     height: 100%;
     padding: 8px 14px;
     font-size: 0.875rem;
-    font-weight: 500;
-    color: #041038;
+    color: #ffffff;
     text-decoration: none;
-    border-radius: 7px;
     transition: color 0.15s, background 0.15s;
     white-space: nowrap;
+    text-transform: uppercase;
   }
   .gjs-navbar__link:hover {
-    color: #041038;
+    color: #ffffff;
   }
   .gjs-navbar.is-scrolled .gjs-navbar__link {
     color: #041038;
@@ -91,10 +92,11 @@ export const NAVBAR_STYLES = `
     color: #041038;
   }
   .gjs-navbar__link--cta {
-    background: #0057CE;
-    color: #fff !important;
+    background: #FFE200;
+    color: #00101A;
     padding: 8px 18px;
-    border-radius: 100px;
+    font-weight: 500;
+    text-transform: unset;
   }
   .gjs-navbar__link--cta:hover {
     background: #1d4ed8 !important;
@@ -227,6 +229,8 @@ export const NAVBAR_STYLES = `
 
   .gjs-nav-group {
     position: relative;
+    height: 100%;
+  
   }
   .gjs-nav-group--mega {
     position: static;
@@ -239,17 +243,18 @@ export const NAVBAR_STYLES = `
     gap: 5px;
     padding: 8px 14px;
     font-size: 0.875rem;
-    font-weight: 500;
-    color: #041038;
+    font-weight: 400;
+    color: #ffffff;
     background: none;
     border: none;
     cursor: pointer;
     border-radius: 7px;
     transition: color 0.15s, background 0.15s;
     white-space: nowrap;
+    text-transform: uppercase;
   }
   .gjs-nav-group__btn:hover {
-    color: #041038;
+    color: #ffffff;
   }
   .gjs-navbar.is-scrolled .gjs-nav-group__btn {
     color: #041038;
@@ -269,15 +274,12 @@ export const NAVBAR_STYLES = `
 
   .gjs-nav-group__dropdown {
     position: absolute;
-    top: calc(100% + 8px);
+    top: 100%;
     left: 50%;
     transform: translateX(-50%) translateY(-6px);
     min-width: 180px;
-    background: #1e293b;
-    border-radius: 10px;
-    padding: 6px;
+    background: #ffffff;
     box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
-    border: 1px solid rgba(255, 255, 255, 0.08);
     opacity: 0;
     visibility: hidden;
     transition: opacity 0.18s, visibility 0.18s, transform 0.18s;
@@ -292,15 +294,14 @@ export const NAVBAR_STYLES = `
     display: block;
     padding: 8px 12px;
     font-size: 0.875rem;
-    color: rgba(255, 255, 255, 0.72);
+    color: #00101A;
     text-decoration: none;
-    border-radius: 6px;
     white-space: nowrap;
     transition: color 0.15s, background 0.15s;
   }
   .gjs-nav-group__dropdown-item:hover {
     color: #fff;
-    background: rgba(255, 255, 255, 0.08);
+    background: #003152;
   }
 
   .gjs-nav-group__mega {
@@ -325,8 +326,6 @@ export const NAVBAR_STYLES = `
     flex-direction: row;
     align-items: stretch;
     gap: 0;
-    border-radius: 36px;
-    box-shadow: 0 8px 40px rgba(0, 0, 0, 0.10);
     border: 1px solid rgba(0, 0, 0, 0.06);
     overflow: hidden;
     transform: translateY(-6px);
@@ -342,7 +341,9 @@ export const NAVBAR_STYLES = `
     align-items: flex-start;
     padding: 32px 0 32px 40px;
     min-width: 0;
+    max-width:calc(1280px / 2);
     box-sizing: border-box;
+    margin-left: auto;
   }
   .gjs-nav-group__mega-right {
     flex: 0 0 50%;
@@ -350,7 +351,7 @@ export const NAVBAR_STYLES = `
     align-items: stretch;
     overflow: hidden;
     box-sizing: border-box;
-    padding: 48px;
+    padding: 0;
   }
   .gjs-nav-group__mega-img {
     width: 100%;

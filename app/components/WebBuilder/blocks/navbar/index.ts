@@ -26,6 +26,7 @@
  * No external library → safe to run script in canvas iframe.
  */
 import type { Component, Components, CssRule, Editor } from 'grapesjs'
+import { createBlockRegistrar } from '../registry'
 import {
   NAVBAR_ICON,
   TYPE_DROPDOWN,
@@ -73,10 +74,10 @@ function hasClass(component: Component, className: string): boolean {
 
 // ── Registration ──────────────────────────────────────────────────────────────
 export function registerNavbar (editor: Editor): void {
-  const { DomComponents, BlockManager } = editor
+  const { addType, addBlock } = createBlockRegistrar(editor)
 
   // ── Navbar Link ─────────────────────────────────────────────────────────────
-  DomComponents.addType(TYPE_NAVBAR_LINK, {
+  addType(TYPE_NAVBAR_LINK, {
     isComponent: (el: HTMLElement) =>
       el.tagName === 'A' && el.classList.contains('gjs-navbar__link')
         ? { type: TYPE_NAVBAR_LINK }
@@ -106,7 +107,7 @@ export function registerNavbar (editor: Editor): void {
   })
 
   // ── Navbar Menu ─────────────────────────────────────────────────────────────
-  DomComponents.addType(TYPE_NAVBAR_MENU, {
+  addType(TYPE_NAVBAR_MENU, {
     model: {
       defaults: {
         name: 'Nav Menu',
@@ -148,7 +149,7 @@ export function registerNavbar (editor: Editor): void {
   })
 
   // ── Dropdown Item ────────────────────────────────────────────────────────────
-  DomComponents.addType(TYPE_DROPDOWN_ITEM, {
+  addType(TYPE_DROPDOWN_ITEM, {
     isComponent: (el: HTMLElement) =>
       el.tagName === 'A' && el.classList.contains('gjs-nav-group__dropdown-item')
         ? { type: TYPE_DROPDOWN_ITEM }
@@ -176,7 +177,7 @@ export function registerNavbar (editor: Editor): void {
   })
 
   // ── Dropdown Panel ───────────────────────────────────────────────────────────
-  DomComponents.addType(TYPE_DROPDOWN, {
+  addType(TYPE_DROPDOWN, {
     model: {
       defaults: {
         name: 'Dropdown',
@@ -204,7 +205,7 @@ export function registerNavbar (editor: Editor): void {
   // into it and display TYPE_MEGA_LEFT / TYPE_MEGA_RIGHT as visible children.
   // We set selectable/hoverable/draggable false so the user can't accidentally
   // move or select this structural wrapper — but it DOES appear in the tree.
-  DomComponents.addType(TYPE_MEGA_INNER, {
+  addType(TYPE_MEGA_INNER, {
     model: {
       defaults: {
         name: 'Mega Panel',
@@ -223,7 +224,7 @@ export function registerNavbar (editor: Editor): void {
   })
 
   // ── Mega Column ──────────────────────────────────────────────────────────────
-  DomComponents.addType(TYPE_MEGA_COL, {
+  addType(TYPE_MEGA_COL, {
     model: {
       defaults: {
         name: 'Mega Column',
@@ -238,7 +239,7 @@ export function registerNavbar (editor: Editor): void {
   })
 
   // ── Mega Left Panel ──────────────────────────────────────────────────────────
-  DomComponents.addType(TYPE_MEGA_LEFT, {
+  addType(TYPE_MEGA_LEFT, {
     model: {
       defaults: {
         name: 'Mega Left (Columns)',
@@ -252,7 +253,7 @@ export function registerNavbar (editor: Editor): void {
   })
 
   // ── Mega Right Panel ─────────────────────────────────────────────────────────
-  DomComponents.addType(TYPE_MEGA_RIGHT, {
+  addType(TYPE_MEGA_RIGHT, {
     model: {
       defaults: {
         name: 'Mega Right (Image)',
@@ -267,7 +268,7 @@ export function registerNavbar (editor: Editor): void {
   })
 
   // ── Mega Panel ───────────────────────────────────────────────────────────────
-  DomComponents.addType(TYPE_MEGA, {
+  addType(TYPE_MEGA, {
     model: {
       defaults: {
         name: 'Mega Menu',
@@ -297,7 +298,7 @@ export function registerNavbar (editor: Editor): void {
   })
 
   // ── Nav Group ────────────────────────────────────────────────────────────────
-  DomComponents.addType(TYPE_NAV_GROUP, {
+  addType(TYPE_NAV_GROUP, {
     isComponent: (el: HTMLElement) =>
       el.classList?.contains('gjs-nav-group') ? { type: TYPE_NAV_GROUP } : undefined,
     model: {
@@ -310,7 +311,7 @@ export function registerNavbar (editor: Editor): void {
         removable: true,
         ngType: 'dropdown',
         ngLabel: '',
-        ngOffset: 20,
+        ngOffset: 0,
         traits: [
           { type: 'text', label: 'Label', name: 'ngLabel', changeProp: true },
           {
@@ -324,7 +325,7 @@ export function registerNavbar (editor: Editor): void {
             // Only meaningful when ngType === 'mega'; controls the transparent
             // bridge height between the trigger button and the visual panel.
             type: 'number', label: 'Mega 间距 (px)', name: 'ngOffset',
-            changeProp: true, placeholder: '8',
+            changeProp: true, placeholder: '0',
           },
         ],
       },
@@ -358,7 +359,7 @@ export function registerNavbar (editor: Editor): void {
         const applyOffset = () => {
           if (this.get('ngType') !== 'mega') return
           const raw = this.get('ngOffset') as string | number
-          const offset = Math.max(0, Number(raw) || 8)
+          const offset = Math.max(0, Number(raw) || 0)
           this.components().models.forEach((c) => {
             if (c.getType() !== TYPE_MEGA) return
             // addStyle merges into the component's inline style — won't erase
@@ -376,7 +377,7 @@ export function registerNavbar (editor: Editor): void {
   })
 
   // ── Navbar Left Slot ─────────────────────────────────────────────────────────
-  DomComponents.addType(TYPE_NAVBAR_LEFT, {
+  addType(TYPE_NAVBAR_LEFT, {
     isComponent: (el: HTMLElement) =>
       el.classList?.contains('gjs-navbar__left') ? { type: TYPE_NAVBAR_LEFT } : undefined,
     model: {
@@ -394,7 +395,7 @@ export function registerNavbar (editor: Editor): void {
   })
 
   // ── Navbar Center Slot ───────────────────────────────────────────────────────
-  DomComponents.addType(TYPE_NAVBAR_CENTER, {
+  addType(TYPE_NAVBAR_CENTER, {
     isComponent: (el: HTMLElement) =>
       el.classList?.contains('gjs-navbar__center') ? { type: TYPE_NAVBAR_CENTER } : undefined,
     model: {
@@ -411,7 +412,7 @@ export function registerNavbar (editor: Editor): void {
   })
 
   // ── Navbar Right Slot ────────────────────────────────────────────────────────
-  DomComponents.addType(TYPE_NAVBAR_RIGHT, {
+  addType(TYPE_NAVBAR_RIGHT, {
     isComponent: (el: HTMLElement) =>
       el.classList?.contains('gjs-navbar__right') ? { type: TYPE_NAVBAR_RIGHT } : undefined,
     model: {
@@ -428,7 +429,7 @@ export function registerNavbar (editor: Editor): void {
   })
 
   // ── Navbar Root ─────────────────────────────────────────────────────────────
-  DomComponents.addType(TYPE_NAVBAR, {
+  addType(TYPE_NAVBAR, {
     isComponent: (el: HTMLElement) =>
       el.tagName === 'HEADER' && el.classList.contains('gjs-navbar')
         ? { type: TYPE_NAVBAR }
@@ -443,29 +444,19 @@ export function registerNavbar (editor: Editor): void {
 
         style: {
           "position":         "fixed",
-          "top":              "32px",
-          "left":             "32px",
-          "right":            "32px",
-          "z-index":          "100",
-          'padding':          '0 24px',
-          'height':           '64px',
+          "top":              "0",
+          "left":             "0",
+          "right":            "0",
+          "z-index":          "99",
+          'height':           '72px',
           'max-width':        '100%',
-          'box-sizing':       'border-box',
-          'background-color':  '#ffffff',
-          'background-color-scroll':  '#ffffff',
-          'color':  '#041038',
-          'color-scroll':  '#041038',
-          'border-color':  '#e2e8f0',
-          'border-color-scroll':  '#e2e8f0',
-          'border-radius':  '100px',
-          'border-radius-scroll':  '100px',
         },
 
         traits: [
           {
             type: 'select', label: 'Drawer Side', name: 'nbDrawerSide', changeProp: true,
             options: [
-              { id: 'right', name: '右侧（默认）' },
+              { id: 'right', name: '右侧' },
               { id: 'left',  name: '左侧' },
             ],
           },
@@ -578,7 +569,7 @@ export function registerNavbar (editor: Editor): void {
     },
   })
 
-  BlockManager.add('navbar-component', {
+  addBlock('navbar-component', {
     label: 'Navbar', category: 'Navigation', media: NAVBAR_ICON,
     content: { type: TYPE_NAVBAR },
   })

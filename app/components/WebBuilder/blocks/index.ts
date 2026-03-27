@@ -18,18 +18,22 @@ import { registerLogo }      from './logo'
 import { registerFooter }    from './footer'
 import { registerVideo }     from './video'
 
+const BLOCK_REGISTRARS = [
+  registerLayout,
+  registerTypography,
+  registerMedia,
+  registerButton,
+  registerBasicUI,
+  registerSections,
+  registerForm,
+  registerTabs,
+  registerNavbar,
+  registerSearch,
+  registerLogo,
+  registerFooter,
+  registerVideo,
+] satisfies Array<(editor: Editor) => void>
+
 export function registerBlocks(editor: Editor): void {
-  registerLayout(editor)
-  registerTypography(editor)
-  registerMedia(editor)
-  registerButton(editor)
-  registerBasicUI(editor)
-  registerSections(editor)
-  registerForm(editor)
-  registerTabs(editor)
-  registerNavbar(editor)
-  registerSearch(editor)
-  registerLogo(editor)
-  registerFooter(editor)
-  registerVideo(editor)
+  BLOCK_REGISTRARS.forEach((register) => register(editor))
 }
