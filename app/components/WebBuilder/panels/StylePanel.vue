@@ -5,10 +5,11 @@
  * State-aware: styles can target neutral / :hover / :focus.
  * Mode-aware:  styles can be written to component inline style or CSS class rules.
  */
-import { ref, computed, watch, onMounted, onBeforeUnmount, provide } from 'vue'
+import { ref, computed, watch, provide } from 'vue'
 import type { Component } from 'vue'
 import { NCollapse, NCollapseItem, NEmpty } from 'naive-ui'
 import { useEditor } from '../composables/useEditor'
+import { useEditorBridge } from '../bridge/useEditorBridge'
 import { STYLE_CTX } from './style/styleContext'
 import StyleHeader      from './style/StyleHeader.vue'
 import LayoutSection    from './style/sections/LayoutSection.vue'
@@ -22,7 +23,8 @@ import FlexItemSection  from './style/sections/FlexItemSection.vue'
 import GridItemSection  from './style/sections/GridItemSection.vue'
 import { getComputedStyleValue, getStyleValue, setStyleValue } from '../services/editor/styles'
 
-const { editor, ready } = useEditor()
+const { editor } = useEditor()
+const bridge = useEditorBridge()
 
 /** GrapesJS `getClasses()` is typed as `any` — normalize for `string[]` */
 function coerceClassList(v: unknown): string[] {
@@ -32,31 +34,14 @@ function coerceClassList(v: unknown): string[] {
 
 // ── Reactive tick ──────────────────────────────────────────────────────────────
 const _tick = ref(0)
-let _handler: (() => void) | null = null
 
-function bindEvents() {
-  _handler = () => { _tick.value++ }
-  editor.value?.on('style:custom', _handler)
-  editor.value?.on('component:selected', _handler)
-  editor.value?.on('component:deselected', _handler)
-  editor.value?.on('device:change', _handler)
-}
-
-onMounted(() => {
-  if (ready.value) bindEvents()
-  else {
-    const stop = watch(ready, (r) => { if (r) { bindEvents(); stop() } })
-  }
-})
-
-onBeforeUnmount(() => {
-  if (_handler) {
-    editor.value?.off('style:custom', _handler)
-    editor.value?.off('component:selected', _handler)
-    editor.value?.off('component:deselected', _handler)
-    editor.value?.off('device:change', _handler)
-  }
-})
+watch(
+  () => [bridge.selectionRevision.value, bridge.currentDevice.value],
+  () => {
+    _tick.value++
+  },
+  { immediate: true },
+)
 
 // ── State & mode ───────────────────────────────────────────────────────────────
 const currentState = ref('')   // '' | 'hover' | 'focus'
@@ -80,7 +65,7 @@ function setApplyMode(m: 'component' | 'classes') {
 
 const hasSelection = computed(() => {
   void _tick.value
-  return !!editor.value?.getSelected()
+  return bridge.hasSelection.value
 })
 
 const classes = computed<string[]>(() => {

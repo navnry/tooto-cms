@@ -60,12 +60,11 @@ function syncCssText() {
   const cmp = editor.value?.getSelected()
   if (!cmp) { cssText.value = ''; return }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const sm = editor.value?.StyleManager as any
+  const sm = editor.value?.StyleManager
   const smSelected = sm?.getSelected()
   const styles = (smSelected?.getStyle() ?? {}) as Record<string, string>
   const selector = currentSelector()
-  const mediaText = smSelected?.get?.('mediaText') as string | undefined
+  const mediaText = smSelected?.get('mediaText') as string | undefined
 
   if (mediaText) {
     const inner = Object.entries(styles).map(([k, v]) => `    ${k}: ${v};`).join('\n')
@@ -103,8 +102,7 @@ function applyCssText() {
   }
 
   // Get the current rule's styles so we can clear removed properties
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const sm = editor.value?.StyleManager as any
+  const sm = editor.value?.StyleManager
   const smSelected = sm?.getSelected()
   const currentStyles = (smSelected?.getStyle() ?? {}) as Record<string, string>
   for (const prop of Object.keys(currentStyles)) {

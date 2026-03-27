@@ -20,7 +20,7 @@
 import { ref, computed } from 'vue'
 import { onClickOutside } from '@vueuse/core'
 import { usePreview } from '../composables/usePreview'
-import { useDevice } from '../composables/useDevice'
+import { useDevice, type Device } from '../composables/useDevice'
 import AppIcon from '../ui/AppIcon.vue'
 
 const { isPreview, togglePreview } = usePreview()
@@ -33,7 +33,7 @@ const activeOption = computed(() =>
   deviceOptions.find(d => d.key === currentDevice.value) ?? deviceOptions[0],
 )
 
-function handleDeviceClick(key: typeof currentDevice.value) {
+function handleDeviceClick(key: Device) {
   setDevice(key)
   expanded.value = false
 }

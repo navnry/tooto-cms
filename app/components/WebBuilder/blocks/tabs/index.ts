@@ -1,4 +1,4 @@
-import type { Editor } from 'grapesjs'
+import type { Component, Components, Editor } from 'grapesjs'
 import {
   ATTR_PANEL,
   ATTR_TAB,
@@ -15,6 +15,10 @@ import { TABS_STYLES } from './styles'
 
 export function registerTabs(editor: Editor): void {
   const { DomComponents, BlockManager } = editor
+
+  function findByType(collection: Components, type: string): Component | undefined {
+    return collection.models.find(component => component.getType() === type)
+  }
 
   DomComponents.addType(TYPE_TAB_PANEL, {
     isComponent: (el: HTMLElement) =>
@@ -69,26 +73,18 @@ export function registerTabs(editor: Editor): void {
         removable: false,
         highlightable: false,
       },
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      init(this: any) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        this.listenTo(this.components(), 'remove', (removed: any) => {
-          if (removed.get('type') !== TYPE_TAB) return
-          const tabId = removed.getAttributes()[ATTR_TAB] as string
+      init(this: Component) {
+        this.listenTo(this.components(), 'remove', (removed: Component) => {
+          if (removed.getType() !== TYPE_TAB) return
+          const tabId = String(removed.getAttributes()[ATTR_TAB] ?? '')
           if (!tabId) return
           const tabsComp = this.parent()
           if (!tabsComp) return
-          let panelsComp: any = null
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          tabsComp.components().each((component: any) => {
-            if (component.get('type') === TYPE_TABS_PANELS) panelsComp = component
-          })
+          const panelsComp = findByType(tabsComp.components(), TYPE_TABS_PANELS)
           if (!panelsComp) return
-          let panelToRemove: any = null
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          panelsComp.components().each((component: any) => {
-            if (component.getAttributes()[ATTR_PANEL] === tabId) panelToRemove = component
-          })
+          const panelToRemove = panelsComp.components().models.find(component =>
+            String(component.getAttributes()[ATTR_PANEL] ?? '') === tabId,
+          )
           panelToRemove?.remove()
         })
       },
@@ -109,25 +105,17 @@ export function registerTabs(editor: Editor): void {
         'script-export': script,
         traits: [
           {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            type: 'button' as any, label: false, text: '+ Add Tab', full: true,
+            type: 'button', label: false, text: '+ Add Tab', full: true,
             command(ed: Editor) {
               const tabs = ed.getSelected()
-              if (!tabs || tabs.get('type') !== TYPE_TABS) return
-              let nav: any = null
-              let panels: any = null
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              tabs.components().each((component: any) => {
-                if (component.get('type') === TYPE_TABS_NAV) nav = component
-                if (component.get('type') === TYPE_TABS_PANELS) panels = component
-              })
+              if (!tabs || tabs.getType() !== TYPE_TABS) return
+              const nav = findByType(tabs.components(), TYPE_TABS_NAV)
+              const panels = findByType(tabs.components(), TYPE_TABS_PANELS)
               if (!nav || !panels) return
               const id = uid()
-              const n = (nav.components().length as number) + 1
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              ;(nav.components() as any).add(makeTab(id, `Tab ${n}`, false))
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              ;(panels.components() as any).add(makePanel(id, `Content for Tab ${n}`, false))
+              const n = nav.components().length + 1
+              nav.components().add(makeTab(id, `Tab ${n}`, false))
+              panels.components().add(makePanel(id, `Content for Tab ${n}`, false))
             },
           },
         ],
@@ -135,11 +123,9 @@ export function registerTabs(editor: Editor): void {
         components: [],
       },
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      init(this: any) {
+      init(this: Component) {
         if (this.components().length === 0) {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          ;(this.components() as any).reset(makeInitialChildren())
+          this.components().reset(makeInitialChildren())
         }
       },
     },

@@ -19,7 +19,7 @@
  *   trait.getOptionId(opt), trait.getOptionLabel(opt)
  *   trait.runCommand()   — for button type
  */
-import { ref, watch, onMounted, onBeforeUnmount } from 'vue'
+import { ref, watch, onMounted, onBeforeUnmount, shallowRef, markRaw, computed } from 'vue'
 import {
   NInput,
   NInputNumber,
@@ -30,6 +30,7 @@ import {
   NEmpty,
 } from 'naive-ui'
 import { useEditor } from '../composables/useEditor'
+import { useEditorBridge } from '../bridge/useEditorBridge'
 import type { TraitOption, TraitGetValueOptions, TraitSetValueOptions } from 'grapesjs'
 
 /** Structural type for GrapesJS trait models — avoids `any` and class/instance mismatch in templates */
@@ -48,14 +49,15 @@ interface GjsTrait {
 import ColorPicker from './style/ColorPicker.vue'
 
 const { editor, ready } = useEditor()
+const { selectionRevision } = useEditorBridge()
 
 interface TraitCategory {
   category?: { getLabel: () => string; id: string }
   items: GjsTrait[]
 }
 
-const traitCategories = ref<TraitCategory[]>([])
-const hasTraits = ref(false)
+const traitCategories = shallowRef<TraitCategory[]>([])
+const hasTraits = computed(() => traitCategories.value.some(c => c.items.length > 0))
 
 // During input, avoid triggering expensive rerenders/scripts on every keystroke.
 // We use GrapesJS Trait partial updates and only commit on blur/confirm.
@@ -64,16 +66,20 @@ const _commitTimers = new Map<string, number>()
 const _COMMIT_DEBOUNCE_MS = 200
 
 function onTraitCustom() {
-  if (!editor.value) return
+  if (!editor.value) {
+    traitCategories.value = []
+    return
+  }
+
   const cats = editor.value.Traits.getTraitsByCategory() as TraitCategory[]
-  traitCategories.value = cats
-  hasTraits.value = cats.some(c => c.items.length > 0)
+  traitCategories.value = cats.map((category) => markRaw({
+    category: category.category ? markRaw(category.category) : undefined,
+    items: category.items.map((item) => markRaw(item)),
+  }))
 }
 
 function bindEvents() {
   editor.value?.on('trait:custom', onTraitCustom)
-  editor.value?.on('component:selected', onTraitCustom)
-  editor.value?.on('component:deselected', onTraitCustom)
   // Sync immediately in case a component is already selected
   onTraitCustom()
 }
@@ -87,9 +93,11 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   editor.value?.off('trait:custom', onTraitCustom)
-  editor.value?.off('component:selected', onTraitCustom)
-  editor.value?.off('component:deselected', onTraitCustom)
 })
+
+watch(() => selectionRevision.value, () => {
+  onTraitCustom()
+}, { immediate: true })
 
 function getValue(trait: GjsTrait): unknown {
   return trait.getValue({ useType: true })

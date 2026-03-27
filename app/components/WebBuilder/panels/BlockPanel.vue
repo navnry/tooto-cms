@@ -11,7 +11,7 @@
  *   │  └──────────┘  └──────────┘                 │
  *   └─────────────────────────────────────────────┘
  */
-import { ref, onMounted, onBeforeUnmount, computed, watch } from 'vue'
+import { ref, shallowRef, onMounted, onBeforeUnmount, computed, watch, markRaw } from 'vue'
 import { useEditor } from '../composables/useEditor'
 import AppIcon from '../ui/AppIcon.vue'
 import { NCollapse, NCollapseItem } from 'naive-ui'
@@ -26,7 +26,7 @@ import {
 const { editor, ready } = useEditor()
 
 // ── State ─────────────────────────────────────────────────────────────────────
-const blocks      = ref<EditorBlockListItem[]>([])
+const blocks      = shallowRef<EditorBlockListItem[]>([])
 const search      = ref('')
 const dragStartFn = ref<((b: EditorBlockModel) => void) | null>(null)
 const dragStopFn  = ref<((b: EditorBlockModel) => void) | null>(null)
@@ -52,15 +52,24 @@ const groupedBlocks = computed(() => {
 function _syncBlocks() {
   if (!editor.value) return
   const bm = editor.value.Blocks
-  dragStartFn.value = (b: EditorBlockModel) => bm.startDrag(b as never)
+  dragStartFn.value = (b: EditorBlockModel) => bm.startDrag(b)
   dragStopFn.value  = (_b: EditorBlockModel) => bm.endDrag()
-  blocks.value = listEditorBlocks(editor.value)
+  blocks.value = listEditorBlocks(editor.value).map((item) => ({
+    ...item,
+    block: markRaw(item.block),
+  }))
 }
 
 function onBlockCustom(props: { blocks: EditorBlockModel[]; dragStart: (b: EditorBlockModel) => void; dragStop: (b: EditorBlockModel) => void }) {
   dragStartFn.value = props.dragStart
   dragStopFn.value  = props.dragStop
-  blocks.value = props.blocks.map(toEditorBlockListItem)
+  blocks.value = props.blocks.map((block) => {
+    const item = toEditorBlockListItem(block)
+    return {
+      ...item,
+      block: markRaw(item.block),
+    }
+  })
 }
 
 onMounted(() => {

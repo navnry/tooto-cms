@@ -23,7 +23,7 @@ interface Published {
   css: string
 }
 
-const { data: project, pending } = useFetch<Published>('/api/published', {
+const { data: project, pending } = useFetch<Published | null>('/api/published', {
   default: () => null,
   onResponseError() { /* 404 = no published project, handled by v-else */ },
 })

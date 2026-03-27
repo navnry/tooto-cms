@@ -10,7 +10,7 @@
  */
 import { ref, computed, shallowRef, watch, onBeforeUnmount } from 'vue'
 import { useEditor } from '../composables/useEditor'
-import type { Component as GjsComponent } from 'grapesjs'
+import type { CanvasSpot, Component as GjsComponent } from 'grapesjs'
 import AppIcon from '~/components/WebBuilder/ui/AppIcon.vue'
 
 const { editor, ready } = useEditor()
@@ -18,7 +18,6 @@ const { editor, ready } = useEditor()
 // ── Spot position ─────────────────────────────────────────────────────────────
 const spotLeft   = ref(0)
 const spotTop    = ref(0)
-const spotWidth  = ref(0)
 const spotHeight = ref(0)
 const visible    = ref(false)
 
@@ -116,10 +115,9 @@ function moveUp() {
   const s = siblings.value
   if (!c || !s || !canMoveUp.value) return
   const idx = s.indexOf(c)
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  ;(s as any).remove(c, { silent: false })
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  ;(s as any).add(c, { at: idx - 1 })
+  const parent = c.parent()
+  if (!parent) return
+  c.move(parent, { at: idx - 1 })
   editor.value?.select(c)
 }
 
@@ -128,10 +126,9 @@ function moveDown() {
   const s = siblings.value
   if (!c || !s || !canMoveDown.value) return
   const idx = s.indexOf(c)
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  ;(s as any).remove(c, { silent: false })
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  ;(s as any).add(c, { at: idx + 1 })
+  const parent = c.parent()
+  if (!parent) return
+  c.move(parent, { at: idx + 1 })
   editor.value?.select(c)
 }
 
@@ -140,10 +137,7 @@ function onCanvasSpot() {
   const ed = editor.value
   if (!ed) return
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const spots: any[] = ed.Canvas.getSpots()
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const s = spots.find((sp: any) => sp.type === 'select')
+  const s = ed.Canvas.getSpots().find((spot: CanvasSpot) => spot.type === 'select')
 
   if (!s) {
     visible.value = false
@@ -154,7 +148,6 @@ function onCanvasSpot() {
   const style = s.getStyle() as Record<string, string>
   spotLeft.value   = parseFloat(style.left)   || 0
   spotTop.value    = parseFloat(style.top)    || 0
-  spotWidth.value  = parseFloat(style.width)  || 0
   spotHeight.value = parseFloat(style.height) || 0
 
   selectedComp.value = ed.getSelected() ?? null

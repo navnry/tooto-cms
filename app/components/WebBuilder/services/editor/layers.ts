@@ -2,7 +2,7 @@ import type { Component, Editor } from 'grapesjs'
 
 export interface LayerSnapshot {
   name: string
-  children: unknown[]
+  children: Component[]
   visible: boolean
   open: boolean
   selected: boolean
@@ -15,7 +15,7 @@ export function getLayerSnapshot(editor: Editor, component: Component): LayerSna
   if (!data) return null
   return {
     name: (data.name as string) || '',
-    children: (data.components as unknown[]) ?? [],
+    children: (data.components as Component[]) ?? [],
     visible: (data.visible as boolean) ?? true,
     open: (data.open as boolean) ?? false,
     selected: (data.selected as boolean) ?? false,

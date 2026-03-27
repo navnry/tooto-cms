@@ -1,12 +1,19 @@
-import type { Editor } from 'grapesjs'
+import type { Component, Editor } from 'grapesjs'
 import { makeSelectTrait } from '../../utils/traitFactory'
 
 export const WB_HEADING_TYPE = 'wb-heading'
 
+const HEADING_TAGS = new Set(['h1', 'h2', 'h3', 'h4', 'h5', 'h6'])
+
+function normalizeHeadingTag(value: unknown): string {
+  const tag = `${value || 'h2'}`.toLowerCase()
+  return HEADING_TAGS.has(tag) ? tag : 'h2'
+}
+
 /**
  * 注册标题组件 + Block
  * - 继承 GrapesJS 内置 text 类型，支持双击直接在画布内联编辑文本
- * - headingTag prop 驱动 tagName，变更时 GrapesJS 自动触发 view re-render
+ * - headingTag prop 驱动 tagName 切换，同时同步一个 data-heading-tag 语义属性
  */
 export function registerHeading(editor: Editor) {
   const { DomComponents, BlockManager } = editor
@@ -25,7 +32,10 @@ export function registerHeading(editor: Editor) {
         name: '标题',
         tagName: 'h2',
         droppable: false,
-        attributes: { 'data-wb-component': 'heading' },
+        attributes: {
+          'data-wb-component': 'heading',
+          'data-heading-tag': 'h2',
+        },
         style: {
           margin: '0 0 16px 0',
           color: 'var(--color-text-primary, #111827)',
@@ -45,12 +55,18 @@ export function registerHeading(editor: Editor) {
           ]),
         ],
       },
-      init(this: any) {
+      init(this: Component) {
+        const initialTag = normalizeHeadingTag(this.get('tagName') || this.get('headingTag'))
+        if (this.get('headingTag') !== initialTag) {
+          this.set('headingTag', initialTag, { silent: true })
+        }
+        this.addAttributes({ 'data-heading-tag': initialTag }, { silent: true })
         this.on('change:headingTag', this.applyHeadingTag)
-        this.applyHeadingTag()
       },
-      applyHeadingTag(this: any) {
-        const tag = `${this.get('headingTag') || 'h2'}`.toLowerCase()
+      applyHeadingTag(this: Component) {
+        const tag = normalizeHeadingTag(this.get('headingTag'))
+        this.set('headingTag', tag, { silent: true })
+        this.addAttributes({ 'data-heading-tag': tag })
         if (this.get('tagName') !== tag) {
           this.set('tagName', tag)
         }

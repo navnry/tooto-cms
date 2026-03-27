@@ -7,13 +7,14 @@
  *   CENTER — device switcher (true center via grid-cols-[1fr_auto_1fr])
  *   RIGHT  — outline toggle + theme toggle + code editor + preview + unsaved indicator + save
  */
-import { computed, ref, watch, onBeforeUnmount } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useEditor } from '../composables/useEditor'
+import { useEditorBridge } from '../bridge/useEditorBridge'
 import { useTheme, type ThemeMode } from '../composables/useTheme'
 import { usePreview } from '../composables/usePreview'
 import { useProjects } from '~/composables/useProjects'
-import { useDevice } from '../composables/useDevice'
+import { useDevice, type Device } from '../composables/useDevice'
 import {
   NButton,
   NDivider,
@@ -28,10 +29,11 @@ import CodeEditorModal from '../panels/CodeEditorModal.vue'
 defineOptions({ inheritAttrs: false })
 
 const router  = useRouter()
-const { editor, ready } = useEditor()
+const { editor, ready, loadSucceeded, error: editorError } = useEditor()
+const { currentDevice, isDirty, setCurrentDevice } = useEditorBridge()
 const { mode, setMode } = useTheme()
 const { isPreview, togglePreview } = usePreview()
-const { currentDevice, deviceOptions, setDevice } = useDevice()
+const { deviceOptions } = useDevice()
 const message = useMessage()
 
 const { currentProject, refresh: refreshProjects } = useProjects()
@@ -46,16 +48,19 @@ const themeOptions: Array<{ key: ThemeMode; label: string; icon: string }> = [
   { key: 'system', label: 'System mode', icon: 'lucide:laptop' },
 ]
 const THEME_CYCLE: ThemeMode[] = ['light', 'dark', 'system']
-const currentThemeOption = computed(() => themeOptions.find(t => t.key === mode.value)!)
+const DEFAULT_THEME_OPTION = themeOptions[0] ?? { key: 'light', label: 'Light mode', icon: 'lucide:sun' }
+const currentThemeOption = computed(() => themeOptions.find(t => t.key === mode.value) ?? DEFAULT_THEME_OPTION)
+const canEdit = computed(() => ready.value && loadSucceeded.value && !editorError.value)
 
 function cycleTheme() {
-  const idx = THEME_CYCLE.indexOf(mode.value)
-  setMode(THEME_CYCLE[(idx + 1) % THEME_CYCLE.length])
+  const currentIndex = THEME_CYCLE.includes(mode.value) ? THEME_CYCLE.indexOf(mode.value) : 0
+  const nextTheme = THEME_CYCLE[(currentIndex + 1) % THEME_CYCLE.length] ?? ('light' as ThemeMode)
+  setMode(nextTheme)
 }
 
 // ── Back to home ──────────────────────────────────────────────────────────────
 async function goHome() {
-  if (editor.value) {
+  if (canEdit.value && editor.value) {
     try { await editor.value.store() } catch { /* ignore */ }
   }
   router.push('/t-admin')
@@ -70,7 +75,7 @@ watch(ready, (isReady) => {
 })
 
 function toggleOutline() {
-  if (!editor.value) return
+  if (!canEdit.value || !editor.value) return
   const cmd = 'core:component-outline'
   if (editor.value.Commands.isActive(cmd)) {
     editor.value.stopCommand(cmd)
@@ -81,31 +86,6 @@ function toggleOutline() {
   }
 }
 
-// ── Dirty state ───────────────────────────────────────────────────────────────
-const isDirty = ref(false)
-let _updateListener: (() => void) | null = null
-
-watch(ready, (isReady) => {
-  if (!isReady || !editor.value) return
-  _updateListener = () => {
-    isDirty.value = (editor.value?.getDirtyCount() ?? 0) > 0
-  }
-  editor.value.on('update', _updateListener)
-})
-
-onBeforeUnmount(() => {
-  if (_updateListener) {
-    editor.value?.off('update', _updateListener)
-    _updateListener = null
-  }
-  if (_undoRedoUpdateFn) {
-    editor.value?.off('update', _undoRedoUpdateFn)
-    editor.value?.off('component:add', _undoRedoUpdateFn)
-    editor.value?.off('component:remove', _undoRedoUpdateFn)
-    _undoRedoUpdateFn = null
-  }
-})
-
 const { isVisible: isLayersVisible, toggle: toggleLayers } = useFloatingLayers()
 
 // ── Code editor ───────────────────────────────────────────────────────────────
@@ -115,7 +95,7 @@ const showCodeEditor = ref(false)
 const isSaving = ref(false)
 
 async function save() {
-  if (!editor.value || isSaving.value) return
+  if (!canEdit.value || !editor.value || isSaving.value) return
   isSaving.value = true
   try {
     await editor.value.store()
@@ -128,22 +108,6 @@ async function save() {
   }
 }
 
-// ── Undo / Redo ────────────────────────────────────────────────────────────────
-const canUndo = ref(false)
-const canRedo = ref(false)
-let _undoRedoUpdateFn: (() => void) | null = null
-
-watch(ready, (isReady) => {
-  if (!isReady || !editor.value) return
-  _undoRedoUpdateFn = () => {
-    const um = editor.value?.UndoManager
-    canUndo.value = (um?.hasUndo?.()) ?? false
-    canRedo.value = (um?.hasRedo?.()) ?? false
-  }
-  editor.value.on('update', _undoRedoUpdateFn)
-  editor.value.on('component:add', _undoRedoUpdateFn)
-  editor.value.on('component:remove', _undoRedoUpdateFn)
-})
 </script>
 
 <template>
@@ -196,13 +160,14 @@ watch(ready, (isReady) => {
       :value="currentDevice"
       type="segment"
       size="small"
-      @update:value="(v: string) => setDevice(v as any)"
+      :disabled="!canEdit"
+      @update:value="(v: string) => setCurrentDevice(v as Device)"
     >
       <n-tab
         v-for="d in deviceOptions"
         :key="d.key"
         :name="d.key"
-        :disabled="!ready"
+        :disabled="!canEdit"
       >
         <div class="flex items-center px-2 py-0.5">
           <AppIcon :icon="d.icon" :size="14" />
@@ -215,6 +180,7 @@ watch(ready, (isReady) => {
       <!-- Outline toggle -->
       <n-button
         text size="small" style="padding: 0 4px"
+        :disabled="!canEdit"
         :style="showOutline ? '' : 'opacity: 0.4'"
         @click="toggleOutline"
       >
@@ -222,18 +188,19 @@ watch(ready, (isReady) => {
       </n-button>
 
       <!-- Theme -->
-      <n-button text size="small" style="padding: 0 4px" @click="cycleTheme">
+      <n-button text size="small" style="padding: 0 4px" :disabled="!canEdit" @click="cycleTheme">
         <AppIcon :icon="currentThemeOption.icon" :size="15" />
       </n-button>
 
       <!-- Code editor -->
-      <n-button text size="small" style="padding: 0 4px" :disabled="!ready" @click="showCodeEditor = true">
+      <n-button text size="small" style="padding: 0 4px" :disabled="!canEdit" @click="showCodeEditor = true">
         <AppIcon icon="lucide:code-2" :size="15" />
       </n-button>
 
       <!-- Layers toggle -->
       <n-button
         text size="small" style="padding: 0 4px"
+        :disabled="!canEdit"
         :style="isLayersVisible ? '' : 'opacity: 0.4'"
         title="Toggle Layers panel"
         @click="toggleLayers"
@@ -242,7 +209,7 @@ watch(ready, (isReady) => {
       </n-button>
 
       <!-- Preview -->
-      <n-button text size="small" style="padding: 0 4px" :disabled="!ready" @click="togglePreview">
+      <n-button text size="small" style="padding: 0 4px" :disabled="!canEdit" @click="togglePreview">
         <AppIcon icon="lucide:eye" :size="15" />
       </n-button>
 
@@ -252,7 +219,7 @@ watch(ready, (isReady) => {
       <span v-if="isDirty" class="w-[6px] h-[6px] rounded-full bg-amber-400 flex-shrink-0" />
 
       <!-- Save -->
-      <n-button size="small" :loading="isSaving" :disabled="!ready || !isDirty" @click="save">
+      <n-button size="small" :loading="isSaving" :disabled="!canEdit || !isDirty" @click="save">
         Save
       </n-button>
     </div>

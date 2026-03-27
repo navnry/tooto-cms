@@ -25,7 +25,7 @@
  *
  * No external library → safe to run script in canvas iframe.
  */
-import type { Editor } from 'grapesjs'
+import type { Component, Components, CssRule, Editor } from 'grapesjs'
 import {
   NAVBAR_ICON,
   TYPE_DROPDOWN,
@@ -56,6 +56,20 @@ import {
 } from './factories'
 import { navbarScript as script } from './script'
 import { NAVBAR_STYLES } from './styles'
+
+type CssComposerModule = {
+  getRule: (selectors: string) => CssRule | null | undefined
+  setRule: (selectors: string, style: Record<string, string>) => CssRule
+}
+
+function findByType(collection: Components, type: string): Component | undefined {
+  return collection.models.find(component => component.getType() === type)
+}
+
+function hasClass(component: Component, className: string): boolean {
+  const classes = component.getClasses() as string[]
+  return Array.isArray(classes) && classes.includes(className)
+}
 
 // ── Registration ──────────────────────────────────────────────────────────────
 export function registerNavbar (editor: Editor): void {
@@ -105,33 +119,27 @@ export function registerNavbar (editor: Editor): void {
 
         traits: [
           {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            type: 'button' as any, name: 'add-link', label: false, text: '+ Add Link', full: true,
+            type: 'button', name: 'add-link', label: false, text: '+ Add Link', full: true,
             command (ed: Editor) {
               const menu = ed.getSelected()
-              if (!menu || menu.get('type') !== TYPE_NAVBAR_MENU) return
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              ;(menu.components() as any).add(makeLink('New Link'))
+              if (!menu || menu.getType() !== TYPE_NAVBAR_MENU) return
+              menu.components().add(makeLink('New Link'))
             },
           },
           {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            type: 'button' as any, name: 'add-dropdown', label: false, text: '+ Add Dropdown', full: true,
+            type: 'button', name: 'add-dropdown', label: false, text: '+ Add Dropdown', full: true,
             command (ed: Editor) {
               const menu = ed.getSelected()
-              if (!menu || menu.get('type') !== TYPE_NAVBAR_MENU) return
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              ;(menu.components() as any).add(makeNavGroup('Menu'))
+              if (!menu || menu.getType() !== TYPE_NAVBAR_MENU) return
+              menu.components().add(makeNavGroup('Menu'))
             },
           },
           {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            type: 'button' as any, name: 'add-mega', label: false, text: '+ Add Mega Menu', full: true,
+            type: 'button', name: 'add-mega', label: false, text: '+ Add Mega Menu', full: true,
             command (ed: Editor) {
               const menu = ed.getSelected()
-              if (!menu || menu.get('type') !== TYPE_NAVBAR_MENU) return
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              ;(menu.components() as any).add(makeNavGroup('Menu', 'mega'))
+              if (!menu || menu.getType() !== TYPE_NAVBAR_MENU) return
+              menu.components().add(makeNavGroup('Menu', 'mega'))
             },
           },
         ],
@@ -179,13 +187,11 @@ export function registerNavbar (editor: Editor): void {
         droppable: `[data-gjs-type="${TYPE_DROPDOWN_ITEM}"]`,
         traits: [
           {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            type: 'button' as any, name: 'add-item', label: false, text: '+ Add Item', full: true,
+            type: 'button', name: 'add-item', label: false, text: '+ Add Item', full: true,
             command (ed: Editor) {
               const dropdown = ed.getSelected()
-              if (!dropdown || dropdown.get('type') !== TYPE_DROPDOWN) return
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              ;(dropdown.components() as any).add(makeDropdownItem('New Item'))
+              if (!dropdown || dropdown.getType() !== TYPE_DROPDOWN) return
+              dropdown.components().add(makeDropdownItem('New Item'))
             },
           },
         ],
@@ -272,28 +278,17 @@ export function registerNavbar (editor: Editor): void {
         droppable: false,
         traits: [
           {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            type: 'button' as any, name: 'add-col', label: false, text: '+ Add Column', full: true,
+            type: 'button', name: 'add-col', label: false, text: '+ Add Column', full: true,
             command (ed: Editor) {
               const mega = ed.getSelected()
-              if (!mega || mega.get('type') !== TYPE_MEGA) return
+              if (!mega || mega.getType() !== TYPE_MEGA) return
               // Drill into inner → left panel to add a new column.
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              const inner = (mega.components() as any).find(
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                (c: any) => c.getClasses().includes('gjs-nav-group__mega-inner')
-              ) as any
+              const inner = findByType(mega.components(), TYPE_MEGA_INNER)
               if (!inner) return
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              const left = (inner.components() as any).find(
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                (c: any) => c.get('type') === TYPE_MEGA_LEFT
-              ) as any
+              const left = findByType(inner.components(), TYPE_MEGA_LEFT)
               if (!left) return
-              // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
-              const n = (left.components().length as number) + 1
-              // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
-              ;(left.components() as any).add(makeMegaCol(`Column ${n}`))
+              const n = left.components().length + 1
+              left.components().add(makeMegaCol(`Column ${n}`))
             },
           },
         ],
@@ -334,68 +329,44 @@ export function registerNavbar (editor: Editor): void {
         ],
       },
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      init (this: any) {
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
+      init(this: Component) {
         this.listenTo(this, 'change:ngLabel', () => {
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
           const label = this.get('ngLabel') as string
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
-          this.components().each((c: any) => {
-            // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
-            if (!c.getClasses().includes('gjs-nav-group__btn')) return
-            // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
-            c.components().each((cc: any) => {
-              // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
-              if (cc.get('type') === 'textnode') cc.set('content', label)
+          this.components().models.forEach((c) => {
+            if (!hasClass(c, 'gjs-nav-group__btn')) return
+            c.components().models.forEach((cc) => {
+              if (cc.getType() === 'textnode') cc.set('content', label)
             })
           })
         })
 
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
         this.listenTo(this, 'change:ngType', () => {
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
           const type = this.get('ngType') as 'dropdown' | 'mega'
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
-          const comps = this.components() as any
-          let panelComp: any = null
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
-          comps.each((c: any) => {
-            // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
-            if (c.get('type') === TYPE_DROPDOWN || c.get('type') === TYPE_MEGA) panelComp = c
-          })
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
+          const comps = this.components()
+          const panelComp = comps.models.find((c) =>
+            c.getType() === TYPE_DROPDOWN || c.getType() === TYPE_MEGA,
+          )
           if (panelComp) panelComp.remove()
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
           comps.add(type === 'mega' ? makeMega() : makeDropdown())
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
           if (type === 'mega') this.addClass('gjs-nav-group--mega')
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
           else this.removeClass('gjs-nav-group--mega')
           // Apply the current offset to the freshly created mega wrapper.
           if (type === 'mega') applyOffset()
         })
 
         // ── ngOffset: control the transparent bridge gap above the mega panel ──
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const applyOffset = () => {
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
           if (this.get('ngType') !== 'mega') return
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
           const raw = this.get('ngOffset') as string | number
           const offset = Math.max(0, Number(raw) || 8)
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
-          ;(this.components() as any).each((c: any) => {
-            // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
-            if (c.get('type') !== TYPE_MEGA) return
+          this.components().models.forEach((c) => {
+            if (c.getType() !== TYPE_MEGA) return
             // addStyle merges into the component's inline style — won't erase
             // user-set properties managed via the Style Manager.
-            // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
             c.addStyle({ 'padding-top': `${offset}px` })
           })
         }
 
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
         this.listenTo(this, 'change:ngOffset', applyOffset)
 
         // Apply on init so loaded projects restore the correct bridge height.
@@ -525,36 +496,25 @@ export function registerNavbar (editor: Editor): void {
         components: createNavbarStructure(),
       },
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      init (this: any) {
+      init(this: Component) {
         // ── Drawer side ──────────────────────────────────────────────────────
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
         this.listenTo(this, 'change:nbDrawerSide', () => {
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
           const side = this.get('nbDrawerSide') as string
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
           if (side === 'left') this.addClass('gjs-navbar--drawer-left')
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
           else this.removeClass('gjs-navbar--drawer-left')
         })
 
         // ── Menu alignment — CSS-class approach ───────────────────────────────
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const applyMenuAlign = (align: string) => {
           const a = align || 'center'
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
           this.removeClass('gjs-navbar--menu-left')
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
           this.removeClass('gjs-navbar--menu-right')
-          if (a === 'left')  this.addClass('gjs-navbar--menu-left')   // eslint-disable-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
-          if (a === 'right') this.addClass('gjs-navbar--menu-right')  // eslint-disable-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
+          if (a === 'left')  this.addClass('gjs-navbar--menu-left')
+          if (a === 'right') this.addClass('gjs-navbar--menu-right')
         }
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
         this.listenTo(this, 'change:nbMenuAlign', () => {
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
           applyMenuAlign(this.get('nbMenuAlign') as string)
         })
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
         const _initAlign = this.get('nbMenuAlign') as string
         if (_initAlign) applyMenuAlign(_initAlign)
 
@@ -562,22 +522,15 @@ export function registerNavbar (editor: Editor): void {
         // CssComposer writes to GrapesJS's own CSS model (exported as a <style>
         // tag). It is completely safe: it never touches canvas element styles
         // directly, so GrapesJS's MutationObserver is never triggered.
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const applyColorTraits = () => {
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
           const id = this.getId() as string
           if (!id) return
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
-          const cc = this.em?.get?.('CssComposer') as any  // eslint-disable-line @typescript-eslint/no-explicit-any
+          const cc = this.em?.get?.('CssComposer') as CssComposerModule | undefined
           if (!cc) return
 
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
           const bg          = ((this.get('nbBg')          as string) || '').trim()
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
           const scrollBg    = ((this.get('nbScrollBg')    as string) || '').trim()
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
           const color       = ((this.get('nbColor')       as string) || '').trim()
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
           const scrollColor = ((this.get('nbScrollColor') as string) || '').trim()
 
           const s = `#${id}`
@@ -586,13 +539,9 @@ export function registerNavbar (editor: Editor): void {
           // values on top. This preserves any properties the user set via the
           // Style Manager (background, border, padding, etc.) while only
           // overriding the specific property the trait controls.
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const setRule = (sel: string, newStyles: Record<string, string>) => {
-            // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
-            const existing = cc.getRule(sel) as any  // eslint-disable-line @typescript-eslint/no-explicit-any
-            // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
-            const base: Record<string, string> = existing ? { ...existing.getStyle() } : {}
-            // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
+            const existing = cc.getRule(sel)
+            const base: Record<string, string> = existing ? { ...(existing.getStyle() as Record<string, string>) } : {}
             cc.setRule(sel, { ...base, ...newStyles })
           }
 
@@ -614,18 +563,15 @@ export function registerNavbar (editor: Editor): void {
           }
         }
 
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
         this.listenTo(this, 'change:nbBg change:nbScrollBg change:nbColor change:nbScrollColor', applyColorTraits)
 
         // Apply saved values after the editor (and canvas) is fully ready.
         // Calling cc.setRule() too early (during project deserialization) would
         // throw because the canvas frames aren't initialised yet.
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
         if (this.em?.get?.('loaded')) {
           // Editor already loaded (e.g. block dropped at runtime)
           applyColorTraits()
         } else {
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
           this.listenToOnce(this.em, 'load', applyColorTraits)
         }
       },

@@ -27,6 +27,9 @@ const { initEditor, destroyEditor, ready, editor } = useEditor()
 // CanvasToolbar is teleported here so its position: absolute coordinates
 // match the GrapesJS canvas spot coordinate space exactly.
 const spotsEl = ref<HTMLElement | null>(null)
+type CanvasWithSpots = {
+  getSpotsEl?: () => HTMLElement | null
+}
 
 onMounted(() => {
   if (canvasRef.value) {
@@ -36,8 +39,7 @@ onMounted(() => {
 
 watch(ready, (isReady) => {
   if (isReady && editor.value) {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    spotsEl.value = (editor.value.Canvas as any).getSpotsEl?.() as HTMLElement ?? null
+    spotsEl.value = (editor.value.Canvas as CanvasWithSpots).getSpotsEl?.() ?? null
   }
 })
 

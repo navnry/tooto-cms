@@ -2,15 +2,16 @@
  * useLayerTree — GrapesJS component tree as reactive LayerNode[]
  *
  * Manages:
- *  - Tree building from GrapesJS wrapper (rebuilds on layer events)
- *  - Selection sync: canvas ↔ layer panel
+ *  - Tree building from GrapesJS wrapper (rebuilds on bridge revisions)
+ *  - Selection sync: canvas ↔ layer panel via bridge
  *  - Visibility toggle, expand/collapse (collapsedIds Set)
  *  - Component move with undo-manager-compatible collection ops
  */
 import { ref, watch } from 'vue'
 import type { Ref } from 'vue'
+import { useEditorBridge } from '../bridge/useEditorBridge'
 import { useEditor } from './useEditor'
-import type { Component } from 'grapesjs'
+import type { Component, Editor } from 'grapesjs'
 
 // ── Public types ──────────────────────────────────────────────────────────────
 
@@ -44,14 +45,45 @@ export interface LayerDragContext {
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-function buildNode(cmp: Component, layerApi: any, visited = new Set<string>()): LayerNode {
+type LayerApi = {
+  getLayerData?: (cmp: Component) => {
+    components?: Component[]
+    name?: unknown
+    visible?: unknown
+    open?: unknown
+    selected?: unknown
+    hovered?: unknown
+    locked?: unknown
+  } | null
+}
+
+type ComponentWithMeta = Component & {
+  getName?: () => string
+  getType?: () => string
+}
+
+type DomComponentsApi = {
+  getById?: (id: string) => Component | undefined
+}
+
+function getComponentMeta(cmp: Component): ComponentWithMeta {
+  return cmp as ComponentWithMeta
+}
+
+function getComponentById(editor: Editor | null | undefined, id: string): Component | undefined {
+  const domComponents = editor?.DomComponents as unknown as DomComponentsApi | undefined
+  return domComponents?.getById?.(id)
+}
+
+function buildNode(cmp: Component, layerApi: LayerApi | undefined, visited = new Set<string>()): LayerNode {
   const id = cmp.getId()
+  const meta = getComponentMeta(cmp)
   if (visited.has(id)) {
     return {
       id,
-      label: (cmp as any).getName?.() || (cmp as any).get?.('tagName') || 'div',
-      type: (cmp as any).getType?.() ?? 'default',
-      tagName: ((cmp as any).get?.('tagName') as string | undefined ?? '').toLowerCase(),
+      label: meta.getName?.() || (cmp.get('tagName') as string | undefined) || 'div',
+      type: meta.getType?.() ?? 'default',
+      tagName: ((cmp.get('tagName') as string | undefined) ?? '').toLowerCase(),
       visible: true,
       hasChildren: false,
       children: [],
@@ -60,16 +92,16 @@ function buildNode(cmp: Component, layerApi: any, visited = new Set<string>()): 
 
   const nextVisited = new Set(visited)
   nextVisited.add(id)
-  const data      = layerApi?.getLayerData(cmp)
-  const childCmps = (data?.components as Component[]) ?? cmp.components().models as Component[]
+  const data = layerApi?.getLayerData?.(cmp)
+  const childCmps = data?.components ?? (cmp.components().models as Component[])
   return {
     id,
-    label:       (data?.name as string) || (cmp as any).getName?.() || (cmp as any).get?.('tagName') || 'div',
-    type:        (cmp as any).getType?.() ?? 'default',
-    tagName:     ((cmp as any).get?.('tagName') as string | undefined ?? '').toLowerCase(),
-    visible:     (data?.visible as boolean) ?? true,
+    label: (data?.name as string) || meta.getName?.() || (cmp.get('tagName') as string | undefined) || 'div',
+    type: meta.getType?.() ?? 'default',
+    tagName: ((cmp.get('tagName') as string | undefined) ?? '').toLowerCase(),
+    visible: (data?.visible as boolean) ?? true,
     hasChildren: childCmps.length > 0,
-    children:    childCmps.map(c => buildNode(c, layerApi, nextVisited)),
+    children: childCmps.map(c => buildNode(c, layerApi, nextVisited)),
   }
 }
 
@@ -82,63 +114,75 @@ function isAncestorOf(ancestor: Component, descendant: Component): boolean {
   return false
 }
 
+function expandSelectedAncestors(node: LayerNode, selectedId: string, collapsed: Set<string>): boolean {
+  if (node.id === selectedId) return true
+
+  let matchedDescendant = false
+  for (const child of node.children) {
+    if (expandSelectedAncestors(child, selectedId, collapsed)) {
+      matchedDescendant = true
+    }
+  }
+
+  if (matchedDescendant) {
+    collapsed.delete(node.id)
+  }
+
+  return matchedDescendant
+}
+
 // ── Composable ────────────────────────────────────────────────────────────────
 
 export function useLayerTree() {
-  const { editor, ready } = useEditor()
+  const { editor } = useEditor()
+  const bridge = useEditorBridge()
 
   const layers      = ref<LayerNode[]>([])
-  const selectedId  = ref<string | null>(null)
+  const selectedId  = ref<string | null>(bridge.selectedComponentId.value)
   const collapsedIds = ref<Set<string>>(new Set())
 
-  // Debounced rebuild — coalesces rapid layer:component events into one repaint
+  // Debounced rebuild — coalesces rapid layer refresh signals into one repaint
   let rebuildTimer: ReturnType<typeof setTimeout> | null = null
+
+  function syncSelectionState() {
+    selectedId.value = bridge.selectedComponentId.value
+
+    const currentSelectedId = selectedId.value
+    if (!currentSelectedId || layers.value.length === 0) return
+
+    const nextCollapsed = new Set(collapsedIds.value)
+    let changed = false
+
+    for (const node of layers.value) {
+      if (expandSelectedAncestors(node, currentSelectedId, nextCollapsed)) {
+        changed = true
+      }
+    }
+
+    if (changed) {
+      collapsedIds.value = nextCollapsed
+    }
+  }
+
   function scheduleRebuild() {
     if (rebuildTimer) clearTimeout(rebuildTimer)
     rebuildTimer = setTimeout(() => {
       rebuildTimer = null
-      const wrapper   = editor.value?.getWrapper()
-      const layerApi  = editor.value?.Layers
-      layers.value    = wrapper ? [buildNode(wrapper, layerApi)] : []
+      const wrapper = editor.value?.getWrapper()
+      const layerApi = editor.value?.Layers as LayerApi | undefined
+      layers.value = wrapper ? [buildNode(wrapper, layerApi)] : []
+      syncSelectionState()
     }, 16)
   }
 
-  function bindEvents() {
-    const ed = editor.value
-    if (!ed) return
-
-    ed.on('layer:root',      scheduleRebuild)
-    ed.on('layer:component', scheduleRebuild)
-
-    ed.on('component:selected', (cmp: Component) => {
-      selectedId.value = cmp.getId()
-
-      // Expand all ancestor nodes so the selected row becomes visible in the tree
-      const newCollapsed = new Set(collapsedIds.value)
-      let changed = false
-      let parent = cmp.parent()
-      while (parent) {
-        const pid = parent.getId()
-        if (newCollapsed.has(pid)) { newCollapsed.delete(pid); changed = true }
-        parent = parent.parent()
-      }
-      if (changed) collapsedIds.value = newCollapsed
-    })
-    ed.on('component:deselected', () => { selectedId.value = null })
-
-    // Bootstrap
-    scheduleRebuild()
-    const sel = ed.getSelected()
-    if (sel) selectedId.value = sel.getId()
-  }
-
-  watch(ready, r => { if (r) bindEvents() }, { immediate: true })
+  watch(() => bridge.layersRevision.value, scheduleRebuild, { immediate: true })
+  watch(() => bridge.selectionRevision.value, syncSelectionState, { immediate: true })
 
   // ── Actions ───────────────────────────────────────────────────────────────
 
   function selectLayer(id: string) {
     selectedId.value = id
-    const cmp = (editor.value?.DomComponents as any)?.getById?.(id)
+    const cmp = getComponentById(editor.value, id)
     if (!cmp) return
     editor.value?.select(cmp)
     // Scroll the canvas to center the selected component
@@ -146,7 +190,7 @@ export function useLayerTree() {
   }
 
   function toggleVisible(id: string) {
-    const cmp = (editor.value?.DomComponents as any)?.getById?.(id) as Component | undefined
+    const cmp = getComponentById(editor.value, id)
     if (!cmp) return
     const data = editor.value?.Layers.getLayerData(cmp)
     editor.value?.Layers.setVisible(cmp, !((data?.visible as boolean) ?? true))
@@ -162,8 +206,8 @@ export function useLayerTree() {
   function moveLayer(srcId: string, dstId: string, position: 'before' | 'after' | 'inside') {
     const ed = editor.value
     if (!ed) return
-    const src = (ed.DomComponents as any).getById?.(srcId) as Component | undefined
-    const dst = (ed.DomComponents as any).getById?.(dstId) as Component | undefined
+    const src = getComponentById(ed, srcId)
+    const dst = getComponentById(ed, dstId)
     if (!src || !dst || src === dst || isAncestorOf(src, dst)) return
 
     const newParent = position === 'inside' ? dst : dst.parent()
@@ -185,6 +229,8 @@ export function useLayerTree() {
     // Backbone collection ops are tracked by GrapesJS UndoManager
     oldParent?.components().remove(src)
     newComps.add(src, { at: newIdx })
+
+    scheduleRebuild()
   }
 
   return { layers, selectedId, collapsedIds, selectLayer, toggleVisible, toggleExpand, moveLayer }

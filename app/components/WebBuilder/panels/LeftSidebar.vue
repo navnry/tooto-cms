@@ -10,9 +10,9 @@
  * Layers panel is a floating window toggled from the top toolbar.
  *
  * Properties tab (Style + Settings) auto-activates when a canvas component
- * is selected via GrapesJS `component:selected` event.
+ * is selected via the shared editor bridge.
  */
-import { ref, watch, onBeforeUnmount } from 'vue'
+import { ref, watch } from 'vue'
 import { NTooltip, NTabs, NTabPane } from 'naive-ui'
 import AppIcon from '../ui/AppIcon.vue'
 import BlockPanel from './BlockPanel.vue'
@@ -22,7 +22,7 @@ import GlobalStylesPanel from './GlobalStylesPanel.vue'
 import StylePanel from './StylePanel.vue'
 import TraitPanel from './TraitPanel.vue'
 import AssetsPanel from './AssetsPanel.vue'
-import { useEditor } from '../composables/useEditor'
+import { useEditorBridge } from '../bridge/useEditorBridge'
 
 type TabKey = 'blocks' | 'properties' | 'pages' | 'symbols' | 'styles' | 'assets'
 
@@ -44,20 +44,13 @@ function selectTab(key: TabKey) {
 
 // ── Auto-switch to Properties on component selection ─────────────────────────
 
-const { editor, ready } = useEditor()
+const { selectionRevision, selectedComponentId } = useEditorBridge()
 
-function onComponentSelected() {
-  activeTab.value = 'properties'
-}
-
-watch(ready, (isReady) => {
-  if (!isReady || !editor.value) return
-  editor.value.on('component:selected', onComponentSelected)
-})
-
-onBeforeUnmount(() => {
-  editor.value?.off('component:selected', onComponentSelected)
-})
+watch(() => selectionRevision.value, () => {
+  if (selectedComponentId.value) {
+    activeTab.value = 'properties'
+  }
+}, { immediate: true })
 </script>
 
 <template>

@@ -9,47 +9,32 @@
  *   editor.Pages.select(id)   → switch active page (re-renders canvas)
  *   editor.Pages.getSelected() → current page
  *   page.getId() / getName() / setName()
- *
- * Events: page:add / page:remove / page:select / page:update
+ * Page list and active page state are bridged via useEditorBridge().
  *
  * Fix notes:
  *   - ref inside v-for → use function ref to avoid array wrapping
  *   - NDropdown contextmenu → use trigger="manual" + @contextmenu.prevent
  *     (the reliable Naive UI pattern for programmatic context menus)
  */
-import { ref, computed, nextTick, onMounted, onBeforeUnmount, watch } from 'vue'
+import { ref, computed, nextTick } from 'vue'
 import { NDropdown, useMessage } from 'naive-ui'
 import { useEditor } from '../composables/useEditor'
+import { useEditorBridge } from '../bridge/useEditorBridge'
 import AppIcon from '../ui/AppIcon.vue'
 import PageSettingsModal from './PageSettingsModal.vue'
 import type { Page } from 'grapesjs'
 
-const { editor, ready } = useEditor()
+const { editor } = useEditor()
+const { pages, selectedPageId, selectPage: selectBridgePage } = useEditorBridge()
 const message = useMessage()
 
 // ── State ─────────────────────────────────────────────────────────────────────
 
-interface PageItem { id: string; name: string }
-
-const pages      = ref<PageItem[]>([])
-const selectedId = ref('')
-
-// ── Sync from GrapesJS ────────────────────────────────────────────────────────
-
-function syncPages() {
-  if (!editor.value) return
-  pages.value = editor.value.Pages.getAll().map((p) => ({
-    id:   p.getId(),
-    name: p.getName() || 'Untitled',
-  }))
-  selectedId.value = editor.value.Pages.getSelected()?.getId() ?? ''
-}
-
 // ── Page actions ──────────────────────────────────────────────────────────────
 
 function selectPage(id: string) {
-  if (!editor.value || id === selectedId.value) return
-  editor.value.Pages.select(id)
+  if (!editor.value || id === selectedPageId.value) return
+  selectBridgePage(id)
 }
 
 function addPage() {
@@ -91,8 +76,8 @@ const renamingId = ref<string | null>(null)
 const renameValue = ref('')
 // Function ref — avoids the v-for array-wrapping problem
 let _renameEl: HTMLInputElement | null = null
-function setRenameRef(el: unknown) {
-  _renameEl = (el as HTMLInputElement) || null
+function setRenameRef(el: Element | null) {
+  _renameEl = el instanceof HTMLInputElement ? el : null
 }
 
 function startRename(id: string) {
@@ -134,7 +119,7 @@ const ctxY        = ref(0)
 const ctxPageId   = ref('')
 
 const ctxOptions = computed(() => {
-  const canDelete = (editor.value?.Pages.getAll().length ?? 0) > 1
+  const canDelete = pages.value.length > 1
   return [
     { label: 'Settings',  key: 'settings' },
     { label: 'Rename',    key: 'rename' },
@@ -168,33 +153,6 @@ function onCtxSelect(key: string) {
   else if (key === 'delete')    deletePage(ctxPageId.value)
 }
 
-// ── Lifecycle ─────────────────────────────────────────────────────────────────
-
-let _handler: (() => void) | null = null
-
-onMounted(() => {
-  const bind = () => {
-    syncPages()
-    _handler = syncPages
-    editor.value?.on('page:add',    _handler)
-    editor.value?.on('page:remove', _handler)
-    editor.value?.on('page:select', _handler)
-    editor.value?.on('page:update', _handler)
-  }
-  if (ready.value) bind()
-  else {
-    const stop = watch(ready, r => { if (r) { bind(); stop() } })
-  }
-})
-
-onBeforeUnmount(() => {
-  if (_handler) {
-    editor.value?.off('page:add',    _handler)
-    editor.value?.off('page:remove', _handler)
-    editor.value?.off('page:select', _handler)
-    editor.value?.off('page:update', _handler)
-  }
-})
 </script>
 
 <template>
@@ -247,7 +205,7 @@ onBeforeUnmount(() => {
         :class="[
           'flex items-center gap-2 px-3 py-[6px]',
           'cursor-pointer rounded-md mx-1 transition-colors',
-          page.id === selectedId
+          page.id === selectedPageId
             ? 'bg-[var(--editor-accent)]/15 text-[var(--editor-text)]'
             : 'hover:bg-[var(--editor-surface-overlay)] text-[var(--editor-text-muted)]',
         ]"
@@ -258,7 +216,7 @@ onBeforeUnmount(() => {
         <!-- Page icon -->
         <span
           class="flex-shrink-0 flex items-center"
-          :class="page.id === selectedId ? 'text-[var(--editor-accent)]' : 'text-[var(--editor-text-subtle)]'"
+          :class="page.id === selectedPageId ? 'text-[var(--editor-accent)]' : 'text-[var(--editor-text-subtle)]'"
         >
           <AppIcon icon="lucide:file" :size="14" />
         </span>
@@ -280,7 +238,7 @@ onBeforeUnmount(() => {
 
         <!-- Active dot -->
         <span
-          v-if="page.id === selectedId && renamingId !== page.id"
+          v-if="page.id === selectedPageId && renamingId !== page.id"
           class="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-[var(--editor-accent)]"
         />
 

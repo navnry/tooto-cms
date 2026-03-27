@@ -11,6 +11,7 @@ import { NConfigProvider } from 'naive-ui'
 import { usePreview } from '~/components/WebBuilder/composables/usePreview'
 import { useTheme } from '~/components/WebBuilder/composables/useTheme'
 import { useEditor } from '~/components/WebBuilder/composables/useEditor'
+import { useEditorBridge } from '~/components/WebBuilder/bridge/useEditorBridge'
 import Toolbar from '~/components/WebBuilder/toolbar/Toolbar.vue'
 import LeftSidebar from '~/components/WebBuilder/panels/LeftSidebar.vue'
 import EditorCanvas from '~/components/WebBuilder/canvas/EditorCanvas.vue'
@@ -46,13 +47,15 @@ watchEffect(() => {
 })
 
 onBeforeUnmount(() => {
+  exitPreview()
   if (process.client) {
     document.documentElement.removeAttribute('data-theme')
   }
 })
 
-const { isPreview } = usePreview()
-const { ready, editor } = useEditor()
+const { isPreview, exitPreview } = usePreview()
+const { ready, loading, editor, error: editorError } = useEditor()
+useEditorBridge()
 
 // ── Unsaved-changes guards ─────────────────────────────────────────────────────
 
@@ -79,6 +82,14 @@ onBeforeRouteLeave((to, _from, next) => {
   next(false)
   window.location.href = to.fullPath
 })
+
+function reloadEditorPage() {
+  window.location.reload()
+}
+
+function goToProjects() {
+  router.push('/t-admin')
+}
 </script>
 
 <template>
@@ -96,7 +107,7 @@ onBeforeRouteLeave((to, _from, next) => {
       <!-- Editor init loading overlay -->
       <Transition name="editor-loading">
         <div
-          v-if="!ready"
+          v-if="loading && !editorError"
           class="absolute inset-0 z-[9999] flex flex-col items-center justify-center bg-[#090d1a]"
         >
           <div class="flex flex-col items-center gap-4">
@@ -112,6 +123,48 @@ onBeforeRouteLeave((to, _from, next) => {
                 <span class="w-1.5 h-1.5 rounded-full bg-indigo-400 animate-bounce [animation-delay:300ms]" />
               </div>
               <p class="text-[12px] text-white/40 font-medium tracking-wide">正在加载编辑器…</p>
+            </div>
+          </div>
+        </div>
+      </Transition>
+
+      <Transition name="editor-loading">
+        <div
+          v-if="editorError"
+          class="absolute inset-0 z-[10000] flex items-center justify-center bg-[#090d1a]/95 px-6"
+        >
+          <div class="w-full max-w-[520px] rounded-2xl border border-white/10 bg-[#0f1528] p-6 text-white shadow-2xl">
+            <div class="mb-3 flex items-center gap-3">
+              <div class="flex h-10 w-10 items-center justify-center rounded-xl bg-red-500/15 text-red-300">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M12 9v4" stroke-linecap="round" />
+                  <path d="M12 17h.01" stroke-linecap="round" />
+                  <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z" stroke-linejoin="round" />
+                </svg>
+              </div>
+              <div>
+                <h2 class="text-base font-semibold">编辑器加载失败</h2>
+                <p class="text-xs text-white/55">项目数据没有成功载入，当前会话已被阻断以避免误覆盖原数据。</p>
+              </div>
+            </div>
+
+            <div class="rounded-xl border border-white/8 bg-black/20 px-4 py-3 text-sm text-white/80">
+              {{ editorError }}
+            </div>
+
+            <div class="mt-5 flex items-center justify-end gap-3">
+              <button
+                class="rounded-lg border border-white/12 px-3 py-2 text-sm text-white/70 transition-colors hover:bg-white/5 hover:text-white"
+                @click="goToProjects"
+              >
+                返回项目列表
+              </button>
+              <button
+                class="rounded-lg bg-indigo-500 px-3 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90"
+                @click="reloadEditorPage"
+              >
+                刷新重试
+              </button>
             </div>
           </div>
         </div>

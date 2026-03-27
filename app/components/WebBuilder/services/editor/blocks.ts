@@ -1,11 +1,6 @@
-import type { Component, Editor } from 'grapesjs'
+import type { Block, Component, ComponentAdd, Editor } from 'grapesjs'
 
-export interface EditorBlockModel {
-  getId: () => string
-  getLabel: () => string
-  getMedia: () => string | undefined
-  get: (key: string) => unknown
-}
+export type EditorBlockModel = Block
 
 export interface EditorBlockListItem {
   block: EditorBlockModel
@@ -29,6 +24,17 @@ function resolveCategory(block: EditorBlockModel): string {
   return 'Basic'
 }
 
+function resolveMedia(block: EditorBlockModel): string | undefined {
+  const media = block.getMedia()
+  return typeof media === 'string' ? media : undefined
+}
+
+function resolveContent(block: EditorBlockModel): ComponentAdd | null {
+  const content = block.getContent()
+  const resolved = typeof content === 'function' ? content() : content
+  return resolved ?? null
+}
+
 export function listEditorBlocks(editor: Editor): EditorBlockListItem[] {
   return editor.Blocks.getAll().map((item: unknown) => {
     const block = item as EditorBlockModel
@@ -36,7 +42,7 @@ export function listEditorBlocks(editor: Editor): EditorBlockListItem[] {
       block,
       id: block.getId(),
       label: block.getLabel(),
-      media: block.getMedia(),
+      media: resolveMedia(block),
       category: resolveCategory(block),
     }
   })
@@ -47,54 +53,67 @@ export function toEditorBlockListItem(block: EditorBlockModel): EditorBlockListI
     block,
     id: block.getId(),
     label: block.getLabel(),
-    media: block.getMedia(),
+    media: resolveMedia(block),
     category: resolveCategory(block),
   }
 }
 
 export function addBlockToSelection(editor: Editor, block: EditorBlockModel): void {
-  const content = block.get('content')
+  const content = resolveContent(block)
+  if (!content) return
+
   const selected = editor.getSelected()
 
   if (!selected) {
     const wrapper = editor.getWrapper()
     if (!wrapper) return
-    const added = wrapper.append(content as string)
+    const added = wrapper.append(content)
     if (added?.length) editor.select(added[0])
     return
   }
 
   if (canAcceptChild(selected, content)) {
-    const added = selected.append(content as string)
+    const added = selected.append(content)
     if (added?.length) editor.select(added[0])
     return
   }
 
   const parent = selected.parent()
   if (!parent) return
-  const collection = parent.components() as unknown as {
-    indexOf: (component: Component) => number
-    add: (value: unknown, options?: { at?: number }) => Component | Component[]
-  }
-  const idx = collection.indexOf(selected)
-  const added = collection.add(content, { at: idx + 1 })
-  if (added) editor.select(Array.isArray(added) ? added[0] : added)
+  const idx = parent.components().indexOf(selected)
+  const added = parent.append(content, { at: idx + 1 })
+  if (added.length) editor.select(added[0])
 }
 
-function canAcceptChild(target: Component, blockContent: unknown): boolean {
+function resolveBlockType(blockContent: ComponentAdd): string {
+  const sample = Array.isArray(blockContent) ? blockContent[0] : blockContent
+  if (!sample) return ''
+
+  if (typeof sample === 'string') {
+    const match = sample.match(/data-gjs-type="([^"]+)"/)
+      || sample.match(/data-component-type="([^"]+)"/)
+    return match ? match[1] : ''
+  }
+
+  if (typeof sample === 'object') {
+    const candidate = sample as { type?: unknown; get?: (key: string) => unknown }
+    if (typeof candidate.type === 'string') return candidate.type
+    if (typeof candidate.get === 'function') {
+      const type = candidate.get('type')
+      if (typeof type === 'string') return type
+    }
+  }
+
+  return ''
+}
+
+function canAcceptChild(target: Component, blockContent: ComponentAdd): boolean {
   const droppable = target.get('droppable')
   if (droppable === false) return false
   if (droppable === true || droppable == null) return true
 
   if (typeof droppable === 'string') {
-    let type = ''
-    if (typeof blockContent === 'object' && blockContent !== null && 'type' in blockContent) {
-      type = (blockContent as { type: string }).type
-    } else if (typeof blockContent === 'string') {
-      const match = blockContent.match(/data-gjs-type="([^"]+)"/)
-        || blockContent.match(/data-component-type="([^"]+)"/)
-      type = match ? match[1] : ''
-    }
+    const type = resolveBlockType(blockContent)
     return type ? droppable.includes(type) : false
   }
 

@@ -1,5 +1,4 @@
 import { ref, watch } from 'vue'
-import type { Editor } from 'grapesjs'
 import type {
   ThemeColorToken,
   ThemeEffectsRecord,
@@ -22,37 +21,23 @@ import {
 } from '../services/theme/theme-datasource'
 import { applyThemeCss } from '../services/theme/theme-css'
 import { injectThemeFontsIntoCanvas } from '../services/theme/theme-fonts'
+import { useEditorBridge } from '../bridge/useEditorBridge'
 
 const theme = ref<ThemeSnapshot>(DEFAULT_THEME_SNAPSHOT)
-let boundEditor: Editor | null = null
 
 export function useThemeConfig() {
   const { editor, ready } = useEditor()
+  const bridge = useEditorBridge()
 
   function refresh() {
     if (!editor.value) return
     theme.value = getThemeSnapshot(editor.value)
   }
 
-  function bind() {
-    if (!editor.value || boundEditor === editor.value) return
-    boundEditor = editor.value
+  watch([ready, () => bridge.themeRevision.value], ([isReady]) => {
+    if (!isReady) return
     refresh()
-    const onChange = () => refresh()
-    editor.value.on('data:update', onChange)
-    editor.value.on('data:add', onChange)
-    editor.value.on('data:remove', onChange)
-    editor.value.on('storage:end:load', onChange)
-  }
-
-  if (ready.value) bind()
-  else {
-    const stop = watch(ready, (value) => {
-      if (!value) return
-      bind()
-      stop()
-    })
-  }
+  }, { immediate: true })
 
   function applyAndRefresh() {
     if (!editor.value) return
